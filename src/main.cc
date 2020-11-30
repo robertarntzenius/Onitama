@@ -38,6 +38,8 @@ int main ( int argc, char *argv[] )
           * onicopy = NULL;
 
 
+/* TODO close file */
+
   /* Look for optional operators */
   while ( ( opt = getopt ( argc, argv, "f:n:m:r:p" ) ) != -1 )
   { /* Handle single operator at a time */

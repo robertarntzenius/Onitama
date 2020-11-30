@@ -1,6 +1,6 @@
 CXX = c++
 
-CXXFLAGS = -std=c++14 -Wall -Weffc++ -g -O2
+CXXFLAGS = -std=c++14 -Wall -Weffc++ -g -O3
 
 INC_DIR = inc
 SRC_DIR	= src
