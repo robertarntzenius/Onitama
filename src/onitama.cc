@@ -286,6 +286,8 @@ Onitama::initCards ( const char * filename )
     }
   }
 
+  ifs.close ( );
+
   delete[] selection;
 }
 
