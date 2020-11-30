@@ -106,7 +106,10 @@ Onitama::MCMove ( uint playouts, uint maxturns )
 
   uint bestmove = 0,
        wincount = 0,
+       tiecount = 0,
        maxwincount = 0;
+
+  const double tievalue = 0.2;
 
   Onitama onioption = Onitama ( *this ),
           onicopy   = Onitama ( *this );
@@ -133,8 +136,11 @@ Onitama::MCMove ( uint playouts, uint maxturns )
           ++turns;
         }
 
-        if ( turns % N_PLAYERS == 0 && turns < maxturns )
-          ++ wincount;
+        if ( turns >= maxturns )
+          ++tiecount;
+
+        else if ( turns % N_PLAYERS == 0 )
+          ++wincount;
 
         *this = onioption;
       }
@@ -170,15 +176,17 @@ Onitama::MCMove ( uint playouts, uint maxturns )
           ++turns;
         }
 
-        if ( turns % N_PLAYERS == 0 && turns < maxturns )
-          ++ wincount;
+        if ( turns >= maxturns )
+          ++tiecount;
+        else if ( turns % N_PLAYERS == 0 )
+          ++wincount;
 
         *this = onioption;
       }
 
 
-      if ( wincount >= maxwincount )
-      { maxwincount = wincount;
+      if ( wincount + ( tievalue * tiecount ) >= maxwincount )
+      { maxwincount = wincount + ( tievalue * tiecount );
         bestmove = i;
       }
 
@@ -360,7 +368,7 @@ Onitama::getOptions ( Option (& options) [MAX_OPTIONS], uint & size )
 
 
 void
-Onitama::movePawn ( Option & option )
+Onitama::movePawn ( const Option & option )
 { uint i,j;
 
   if (turn_ == BLUE)

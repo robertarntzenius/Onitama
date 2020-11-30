@@ -114,7 +114,7 @@ class Onitama
     void    getOptions  ( Option (&)[MAX_OPTIONS], uint & );
 
 
-    void    movePawn      ( Option & );
+    void    movePawn      ( const Option & );
     void    exchangeCards ( Card ** );
     void    changeTurn    ( void );
 
