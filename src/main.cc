@@ -96,12 +96,12 @@ int main ( int argc, char *argv[] )
       ++movecount;
     } while( !onicopy->wayOfTheStone ( ) && !onicopy->wayOfTheStream ( ) );
 
-    std::cout << "\tI've won (" << wincount << "/" << i << ") games already!" << std::endl;
 
     /* Check winner */
     if ( onicopy->getTurn ( ) == RED )
       ++wincount;
 
+    std::cout << "\tI've won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
 
     /* Reset positions */
     *onicopy = *onitama;

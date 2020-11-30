@@ -28,7 +28,7 @@ Onitama::Onitama (const Onitama & onitama ) : extra_(NULL),
 { uint i,j;
 
   for ( i = 0; i < N_PLAYERS; ++i )
-    for ( j = 0; j < BOARDSIZE; ++j )
+    for ( j = 0; j < N_PAWNS; ++j )
       pawns_[i][j] = onitama.pawns_[i][j];
 
   for ( i = 0; i < N_CARDS; ++i )
@@ -58,7 +58,7 @@ Onitama::operator= (const Onitama & onitama )
 { uint i,j;
 
   for ( i = 0; i < N_PLAYERS; ++i )
-    for ( j = 0; j < BOARDSIZE; ++j )
+    for ( j = 0; j < N_PAWNS; ++j )
       pawns_[i][j] = onitama.pawns_[i][j];
 
   for ( i = 0; i < N_PLAYERS; ++i )
@@ -322,7 +322,7 @@ Onitama::getOptions ( Option (& options) [MAX_OPTIONS], uint & size )
 
   Card * card;
 
-  for ( i = 0; i < BOARDSIZE; ++i )
+  for ( i = 0; i < N_PAWNS; ++i )
     if ( pawns_[turn_][i].type_ != ePawnType::Dead )
       for ( j = 0; j < CARDS_PLAYER; ++j )
       { card = hands_[turn_][j];
@@ -343,7 +343,7 @@ Onitama::getOptions ( Option (& options) [MAX_OPTIONS], uint & size )
             break;
 
           ++size;
-          for ( l = 0; l < BOARDSIZE; ++l )
+          for ( l = 0; l < N_PAWNS; ++l )
             if (  ( turn_ == BLUE && x == pawns_[BLUE][l].x_ && y == pawns_[BLUE][l].y_ )
                || ( turn_ == RED  && x == pawns_[RED ][l].x_ && y == pawns_[RED ][l].y_ ) )
             { --size;
@@ -370,9 +370,9 @@ Onitama::movePawn ( Option & option )
     option.pawn_->y_ -= option.move_->y_;
   }
 
-  for ( i = 0; i < BOARDSIZE; ++i )
+  for ( i = 0; i < N_PAWNS; ++i )
   { if ( pawns_[BLUE][i].type_ != ePawnType::Dead )
-    { for ( j = 0; j < BOARDSIZE; ++j )
+    { for ( j = 0; j < N_PAWNS; ++j )
       { if ( pawns_[RED][j].type_ != ePawnType::Dead )
         { if ( pawns_[BLUE][i].x_ == pawns_[RED][j].x_ && pawns_[BLUE][i].y_ == pawns_[RED][j].y_)
           { if (turn_ == BLUE)
@@ -528,7 +528,7 @@ Onitama::printPawns ( void ) const
 
   for ( i = 0; i < N_PLAYERS; ++i )
   { std::cout << "Player " << i << ":" << std::endl;
-    for ( j = 0; j < BOARDSIZE; ++j )
+    for ( j = 0; j < N_PAWNS; ++j )
     { pawn = &pawns_[i][j];
       std::cout << "Pawn " << j << ":" << std::endl
                 << "\ttype: " << pawn->type_ << std::endl

@@ -6,8 +6,10 @@
 #define CARDS_EXTRA 1  /* Number of neutral cards */
 
 /* Modular */
-#define BOARDSIZE 5     /* Board size */
-#define N_MASTERS 1     /* Number of masters per player */
+#define BOARDSIZE 5       /* Board size */
+
+#define N_PAWNS BOARDSIZE /* Number of pawns per player (equal to board size) */
+#define N_MASTERS 1       /* Number of masters per player */
 
 
 #define CARDS_PLAYER  2  /* Number of cards per player */
@@ -120,7 +122,7 @@ class Onitama
     void    refreshBoard ( void );
 
     char board_ [BOARDSIZE][BOARDSIZE];
-    Pawn pawns_ [N_PLAYERS][BOARDSIZE];
+    Pawn pawns_ [N_PLAYERS][N_PAWNS];
 
     Card cards_ [N_CARDS];
 
