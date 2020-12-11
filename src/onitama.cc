@@ -109,7 +109,7 @@ Onitama::MCMove ( uint playouts, uint maxturns )
        tiecount = 0,
        maxwincount = 0;
 
-  const double tievalue = 0.2;
+  const double tievalue = -0.05;
 
   Onitama onioption = Onitama ( *this ),
           onicopy   = Onitama ( *this );
@@ -144,7 +144,6 @@ Onitama::MCMove ( uint playouts, uint maxturns )
 
         *this = onioption;
       }
-
 
       if ( wincount >= maxwincount )
       { maxwincount = wincount;
@@ -349,7 +348,7 @@ Onitama::getOptions ( Option (& options) [MAX_OPTIONS], uint & size )
             y = options[size].pawn_->y_ - options[size].move_->y_;
           }
 
-          if ( x > BOARDSIZE || y > BOARDSIZE )
+          if ( x >= BOARDSIZE || y >= BOARDSIZE )
             break;
 
           ++size;

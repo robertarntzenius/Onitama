@@ -83,17 +83,22 @@ int main ( int argc, char *argv[] )
   // onitama->printCards ( );
   onicopy = new Onitama ( *onitama );
 
+  if ( gPrintFlag )
+  { onicopy->printBoard ( );
+    onicopy->printCards ( );
+  }
+
   for ( int i = 0; i < gRepeats; ++i )
   { do
-    { if ( gPrintFlag )
-      { onicopy->printBoard ( );
-        onicopy->printCards ( );
-      }
-
-      if (onicopy->getTurn ( ) == BLUE)
+    { if (onicopy->getTurn ( ) == BLUE)
         onicopy->MCMove ( gPlayouts, gMaxTurns );
       else
         onicopy->randomMove ( );
+
+      if ( gPrintFlag || movecount / (i + 1) > 15 )
+      { onicopy->printBoard ( );
+        onicopy->printCards ( );
+      }
 
       ++movecount;
     } while( !onicopy->wayOfTheStone ( ) && !onicopy->wayOfTheStream ( ) );
