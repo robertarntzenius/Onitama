@@ -1,3 +1,7 @@
+#include <math.h>
+#include <string>
+
+
 /* Declarations */
 
 /* Non-modular */
@@ -26,8 +30,16 @@
 #define BLUE 0
 #define RED  1
 
+#define EXPLORATION_PARAMETER 2
 
 typedef unsigned int uint;
+
+/* Flag for printing boards */
+extern bool gPrintFlag;
+
+extern uint gPlayouts;
+extern uint gMaxTurns;
+
 
 enum ePawnType
 { Dead = 0,
@@ -81,26 +93,23 @@ struct Option
   Move *  move_;
 };
 
+class MCTreeNode;
 
 class Onitama
-{
-
-  public:
+{ public:
     Onitama ( const char * );
     Onitama ( const Onitama & );
 
-    Onitama ( void );
+    /* remove default constructor */
+    Onitama ( void ) = delete;
    ~Onitama ( void );
 
     /* operator copies card arrangement and pawn data */
     Onitama & operator= ( const Onitama & );
 
     void    randomMove ( void );
-    void    MCMove     ( uint , uint );
-
-    void    printBoard ( void ); /* Not const, since it first updates the board */
-    void    printCards ( void ) const;
-    void    printPawns ( void ) const;
+    void    MCMove     ( void );
+    void    MCTSMove   ( void );
 
     uint    getTurn    ( void ) const;
 
@@ -111,8 +120,9 @@ class Onitama
     void    initCards ( const char * );
     void    initPawns ( void );
 
-    void    getOptions  ( Option (&)[MAX_OPTIONS], uint & );
+    void    randomPlayouts ( Onitama &, uint &, uint & );
 
+    void    getOptions  ( Option (&)[MAX_OPTIONS], uint & );
 
     void    movePawn      ( const Option & );
     void    exchangeCards ( Card ** );
@@ -120,6 +130,9 @@ class Onitama
 
     void    divideCards  ( void );
     void    refreshBoard ( void );
+
+    void    printBoard ( void ); /* Not const, since it first updates the board */
+    void    printPlayerCards ( uint ) const;
 
     char board_ [BOARDSIZE][BOARDSIZE];
     Pawn pawns_ [N_PLAYERS][N_PAWNS];
@@ -130,4 +143,41 @@ class Onitama
     Card * extra_;
 
     uint turn_;
+
+    friend class MCTreeNode;
+};
+
+
+class MCTreeNode
+{ public:
+    MCTreeNode ( Onitama & );
+    MCTreeNode ( const MCTreeNode & );
+
+    /* remove default constructor */
+    MCTreeNode ( void ) = delete;
+   ~MCTreeNode ( void );
+
+    MCTreeNode & operator= ( const MCTreeNode & );
+
+    MCTreeNode * doBestMove    ( void );
+    Onitama      getOnitama    ( void );
+
+    bool         nodeCycle     ( void );
+
+    void         printTree     ( std::string pre = "" ) const;
+
+  private:
+    void    deleteChildren     ( void );
+    void    selectChild        ( uint & );
+    void    randomPlayout      ( void );
+
+    MCTreeNode ** children_;
+    Onitama       onitama_;
+
+    Option options_[MAX_OPTIONS];
+
+    uint nrplayed_,
+         nrtied_,
+         nrwon_;
+    uint size_;
 };

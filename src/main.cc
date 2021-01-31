@@ -2,12 +2,13 @@
    C++ program that plays Onitama
 
    Call program with:
-   ./onitama -f FILENAME [-p] [-1 [0|1]] [-2 [0|1]]
+   ./onitama -f FILENAME [-p] [-n <int>] [-r <int>] [-m <int>]
 
    -f      : file with card data
    -p      : print boards
-   -1 type : set player type of player 1
-   -2 type : set player type of player 2
+   -n      : number of games                              [default = 100]
+   -r      : number of playouts (MC)                      [default = 1000]
+   -m      : maximum number of moves in random games (MC) [default = 100]
 
    type can be 0 for RandomPlayer
                1 for MonteCarlosPlayer
@@ -21,11 +22,7 @@
 #include "onitama.h"
 
 
-/* Flag for printing boards */
-bool gPrintFlag = false;
-int  gRepeats   = 10000;
-int  gPlayouts  = 1000;
-int  gMaxTurns  = 100;
+int  gRepeats   = 100;
 
 
 int main ( int argc, char *argv[] )
@@ -36,9 +33,6 @@ int main ( int argc, char *argv[] )
 
   Onitama * onitama = NULL,
           * onicopy = NULL;
-
-
-/* TODO close file */
 
   /* Look for optional operators */
   while ( ( opt = getopt ( argc, argv, "f:n:m:r:p" ) ) != -1 )
@@ -72,33 +66,28 @@ int main ( int argc, char *argv[] )
 
   if ( onitama == NULL )
   { std::cerr << "Please call program as follows:" << std::endl
-              << argv[0] << " -f FILENAME [-p] [-1 [0|1]] [-2 [0|1]]" << std::endl
-              << "\t-f      : file with card data"                    << std::endl
-              << "\t-p      : print boards"                           << std::endl
-              << "\t-1 type : set player type of player 1"            << std::endl
-              << "\t-2 type : set player type of player 2"            << std::endl;
+              << argv[0] << " -f FILENAME [-p] [-n <int>] [-r <int>] [-m <int>]" << std::endl
+              << "\t-f      : file with card data"                               << std::endl
+              << "\t-p      : print boards"                                      << std::endl
+              << "\t-n      : number of games"                                   << std::endl
+              << "\t-r      : number of playouts (MC)"                           << std::endl
+              << "\t-m      : maximum number of moves in random games (MC)"      << std::endl;
+
     return -1;
   }
 
-  // onitama->printCards ( );
-  onicopy = new Onitama ( *onitama );
+  /* MCTS */
+  // onitama->createMCTree ( );
 
-  if ( gPrintFlag )
-  { onicopy->printBoard ( );
-    onicopy->printCards ( );
-  }
+  onicopy = new Onitama ( *onitama );
 
   for ( int i = 0; i < gRepeats; ++i )
   { do
     { if (onicopy->getTurn ( ) == BLUE)
-        onicopy->MCMove ( gPlayouts, gMaxTurns );
+        // onicopy->MCMove ( );
+        onicopy->MCTSMove ( );
       else
         onicopy->randomMove ( );
-
-      if ( gPrintFlag || movecount / (i + 1) > 15 )
-      { onicopy->printBoard ( );
-        onicopy->printCards ( );
-      }
 
       ++movecount;
     } while( !onicopy->wayOfTheStone ( ) && !onicopy->wayOfTheStream ( ) );
@@ -108,7 +97,7 @@ int main ( int argc, char *argv[] )
     if ( onicopy->getTurn ( ) == RED )
       ++wincount;
 
-    std::cout << "\tI've won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
+    std::cout << "Blue won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
 
     /* Reset positions */
     *onicopy = *onitama;
@@ -116,8 +105,10 @@ int main ( int argc, char *argv[] )
 
   std::cout << "Blue won " << wincount << "/" << gRepeats << " times with an average of " << movecount / gRepeats << " moves per game" << std::endl;
 
-  delete onitama;
   delete onicopy;
+
+  // onitama->deleteMCTree ( );
+  delete onitama;
 
   return 0;
 }

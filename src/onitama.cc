@@ -4,8 +4,14 @@
 
 #include <iostream>
 #include <fstream>
-#include <string>
 
+
+uint gPlayouts  = 1000;
+uint gMaxTurns  = 100;
+bool gPrintFlag = false;
+
+
+/* CLASS ONITAMA */
 
 Onitama::Onitama ( const char * filename) : extra_(NULL),
                                             turn_(BLUE)
@@ -42,12 +48,6 @@ Onitama::Onitama (const Onitama & onitama ) : extra_(NULL),
 }
 
 
-Onitama::Onitama ( void ) : extra_(NULL),
-                            turn_(BLUE)
-{
-}
-
-
 Onitama::~Onitama ( void )
 {
 }
@@ -79,6 +79,9 @@ Onitama::randomMove ( void )
 
   Option options [MAX_OPTIONS];
 
+  if ( gPrintFlag )
+    printBoard ( );
+
   getOptions ( options, n );
 
   if ( n > 0 )
@@ -99,9 +102,8 @@ Onitama::randomMove ( void )
 
 
 void
-Onitama::MCMove ( uint playouts, uint maxturns )
-{ uint i,j,
-       turns,
+Onitama::MCMove ( void )
+{ uint i,
        n = 0;
 
   uint bestmove = 0,
@@ -116,37 +118,24 @@ Onitama::MCMove ( uint playouts, uint maxturns )
 
   Option options [MAX_OPTIONS];
 
+  if ( gPrintFlag )
+    printBoard ( );
+
   getOptions ( options, n );
 
   if ( n > 0 )
   { for ( i = 0; i < n; ++i )
     { wincount = 0;
+      tiecount = 0;
 
       movePawn      ( options[i] );
       exchangeCards ( options[i].card_ );
       changeTurn    ( );
 
-      onioption = *this;
+      randomPlayouts ( onioption, wincount, tiecount );
 
-      for ( j = 0; j < playouts; ++j )
-      { turns = 0;
-
-        while( !wayOfTheStone ( ) && !wayOfTheStream ( ) && turns < maxturns )
-        { randomMove ( );
-          ++turns;
-        }
-
-        if ( turns >= maxturns )
-          ++tiecount;
-
-        else if ( turns % N_PLAYERS == 0 )
-          ++wincount;
-
-        *this = onioption;
-      }
-
-      if ( wincount >= maxwincount )
-      { maxwincount = wincount;
+      if ( wincount + ( tievalue * tiecount ) >= maxwincount )
+      { maxwincount = wincount + ( tievalue * tiecount );
         bestmove = i;
       }
 
@@ -160,29 +149,12 @@ Onitama::MCMove ( uint playouts, uint maxturns )
   else
   { for ( i = 0; i < CARDS_PLAYER; ++i )
     { wincount = 0;
+      tiecount = 0;
 
       exchangeCards ( &hands_[turn_][i] );
       changeTurn    ( );
 
-      onioption = *this;
-
-      for ( j = 0; j < playouts; ++j )
-      { /* k used for maxturns */
-        turns = 0;
-
-        while( !wayOfTheStone ( ) && !wayOfTheStream ( ) && turns < maxturns )
-        { randomMove ( );
-          ++turns;
-        }
-
-        if ( turns >= maxturns )
-          ++tiecount;
-        else if ( turns % N_PLAYERS == 0 )
-          ++wincount;
-
-        *this = onioption;
-      }
-
+      randomPlayouts ( onioption, wincount, tiecount );
 
       if ( wincount + ( tievalue * tiecount ) >= maxwincount )
       { maxwincount = wincount + ( tievalue * tiecount );
@@ -197,6 +169,26 @@ Onitama::MCMove ( uint playouts, uint maxturns )
   }
 }
 
+
+void
+Onitama::MCTSMove ( void )
+{ uint i;
+
+  MCTreeNode * root = new MCTreeNode ( *this );
+
+  if ( gPrintFlag )
+    printBoard ( );
+
+  for ( i = 0; i < gPlayouts; ++i )
+    root->nodeCycle ( );
+
+  root->printTree ( );
+
+  root = root->doBestMove ( );
+  *this = root->getOnitama ( );
+
+  delete root;
+}
 
 uint
 Onitama::getTurn ( void ) const
@@ -258,14 +250,13 @@ Onitama::initCards ( const char * filename )
   std::size_t numberOfCards;
 
   bool cardMap[MAX_RANGE][MAX_RANGE];
-  bool * selection;
 
   if ( !ifs.good ( ) )
     return;
 
   ifs >> numberOfCards;
 
-  selection = new bool [numberOfCards]();
+  bool selection[numberOfCards] = {false};
   n = 0;
 
   while ( n < N_CARDS )
@@ -276,7 +267,7 @@ Onitama::initCards ( const char * filename )
     }
   }
 
-  ifs.ignore();
+  ifs.ignore ( );
 
   for ( n = 0; n < numberOfCards; ++n )
   { ifs.ignore();
@@ -288,14 +279,12 @@ Onitama::initCards ( const char * filename )
     }
 
     if ( selection[n] == true )
-    { cards_[m] = Card( cardMap, stamp.compare("BLUE") == 0 );
+    { cards_[m] = Card ( cardMap, stamp.compare("BLUE") == 0 );
       ++m;
     }
   }
 
   ifs.close ( );
-
-  delete[] selection;
 }
 
 
@@ -325,7 +314,30 @@ Onitama::initPawns ( void )
 
 
 void
-Onitama::getOptions ( Option (& options) [MAX_OPTIONS], uint & size )
+Onitama::randomPlayouts (Onitama & onitama, uint & wincount, uint & tiecount )
+{ uint i, turns;
+  onitama = *this;
+
+  for ( i = 0; i < gPlayouts; ++i )
+  { turns = 0;
+
+    while( !wayOfTheStone ( ) && !wayOfTheStream ( ) && turns < gMaxTurns )
+    { randomMove ( );
+      ++turns;
+    }
+
+    if ( turns >= gMaxTurns )
+      ++tiecount;
+    else if ( turns % N_PLAYERS == 0 )
+      ++wincount;
+
+    *this = onitama;
+  }
+}
+
+
+void
+Onitama::getOptions ( Option ( & options ) [MAX_OPTIONS], uint & size )
 { uint i,j,k,l,
        x,y;
 
@@ -486,10 +498,10 @@ Onitama::printBoard ( void )
 
   refreshBoard ( );
 
-  for ( x = 0; x < BOARDSIZE; ++x )
-    std::cout << "-";
+  for ( x = 0; x < (MAX_RANGE + 5) * (CARDS_PLAYER + CARDS_EXTRA) - 1; ++x )
+    std::cout << "=";
 
-  std::cout << std::endl << std::endl;
+  printPlayerCards ( BLUE );
 
   std::cout << "BLUE" << std::endl;
 
@@ -499,51 +511,245 @@ Onitama::printBoard ( void )
 
     std::cout << std::endl;
   }
-  std::cout << "RED" << std::endl << std::endl;
+  std::cout << "RED";
+
+  printPlayerCards ( RED );
 }
 
 
 void
-Onitama::printCards ( void ) const
-{ uint i,j,k;
+Onitama::printPlayerCards ( uint playernr ) const
+{ uint i,
+       n[CARDS_PLAYER + CARDS_EXTRA] = {0};
+  int  x,y;
   Card * card;
+  Move move;
 
-  for ( i = 0; i < N_PLAYERS; ++i )
-  { std::cout << "Player " << i << ":" << std::endl;
-    for ( j = 0; j < CARDS_PLAYER; ++j )
-    { card = hands_[i][j];
-      for ( k = 0; k < card->size_; ++k )
-        std::cout << "moves: { " << card->moves_[k].x_
-                  <<         "," << card->moves_[k].y_
-                  <<        " }" << std::endl;
+  std::cout << std::endl << std::endl;
 
-      std::cout << std::endl;
-    }
+  /* Print labels */
+  for ( i = 0; i < CARDS_PLAYER + CARDS_EXTRA; ++i )
+  { if ( i < CARDS_PLAYER )
+      std::cout << "| CARD" << i << " | ";
+    else if ( playernr == turn_ )
+      std::cout << "| EXTRA |";
+    else
+      break;
   }
-  std::cout << "Extra:" << std::endl;
-  card = extra_;
-  for ( k = 0; k < card->size_; ++k )
-    std::cout << "moves: { " << card->moves_[k].x_
-              <<         "," << card->moves_[k].y_
-              <<        " }" << std::endl;
+
+  std::cout << std::endl;
+
+  for ( y = 0; y < MAX_RANGE; ++y )
+  { for ( i = 0; i < CARDS_PLAYER + CARDS_EXTRA; ++i )
+    { if ( i < CARDS_PLAYER )
+        card = hands_[playernr][i];
+      else if ( playernr == turn_ )
+        card = extra_;
+      else
+        break;
+
+      std::cout << "| ";
+      for ( x = 0; x < MAX_RANGE; ++x )
+      { if ( playernr == BLUE )
+          move = card->moves_[card->size_ - n[i] - 1];
+        else
+          move = card->moves_[n[i]];
+
+        if ( ( playernr == BLUE && move.x_ == ( MAX_RANGE / 2 ) - x && move.y_ == y - ( MAX_RANGE / 2 ) )
+          || ( playernr == RED  && move.x_ == x - ( MAX_RANGE / 2 ) && move.y_ == ( MAX_RANGE / 2 ) - y ) )
+        { std::cout << "1";
+          if ( n[i] < card->size_ - 1 )
+            ++n[i];
+        }
+
+        else
+          std::cout << "0";
+      }
+      std::cout << " | ";
+    }
+    std::cout << std::endl;
+  }
 
   std::cout << std::endl;
 }
 
-void
-Onitama::printPawns ( void ) const
-{ uint i,j;
-  const Pawn * pawn;
 
-  for ( i = 0; i < N_PLAYERS; ++i )
-  { std::cout << "Player " << i << ":" << std::endl;
-    for ( j = 0; j < N_PAWNS; ++j )
-    { pawn = &pawns_[i][j];
-      std::cout << "Pawn " << j << ":" << std::endl
-                << "\ttype: " << pawn->type_ << std::endl
-                << "\tx: " << pawn->x_ << std::endl
-                << "\ty: " << pawn->y_ << std::endl;
+/* CLASS MCTREENODE */
+
+MCTreeNode::MCTreeNode ( Onitama & onitama ) : children_(NULL),
+                                               onitama_(onitama),
+                                               nrplayed_(0),
+                                               nrtied_(0),
+                                               nrwon_(0),
+                                               size_(0)
+{ uint i;
+
+  onitama_.getOptions ( options_, size_ );
+  children_ = new MCTreeNode * [size_];
+
+  /* FIXME geen opties */
+
+  for ( i = 0; i < size_; ++i )
+    children_[i] = NULL;
+
+  /* when created do a single random playout */
+  randomPlayout ( );
+}
+
+
+// MCTreeNode::MCTreeNode ( const MCTreeNode & node )
+// {
+//   /* TODO */
+// }
+
+
+MCTreeNode::~MCTreeNode ( void )
+{ uint i;
+
+  for ( i = 0; i < size_; ++i )
+    if ( children_[i] != NULL )
+      delete children_[i];
+
+  delete[] children_;
+}
+
+
+// MCTreeNode::MCTreeNode & operator= ( const MCTreeNode & )
+// {
+//   /* TODO */
+// }
+
+
+MCTreeNode *
+MCTreeNode::doBestMove ( void )
+{ uint i;
+  MCTreeNode * newroot;
+
+  uint bestmove = 0,
+       mostvisits = 0;
+
+  for ( i = 0; i < size_; ++i )
+    if ( children_[i] != NULL )
+      if ( children_[i]->nrplayed_ >= mostvisits )
+      { mostvisits = children_[i]->nrplayed_;
+        bestmove = i;
+      }
+
+  newroot = children_[bestmove];
+
+  children_[bestmove] = NULL;
+
+  delete this;
+
+  return newroot;
+}
+
+
+Onitama
+MCTreeNode::getOnitama ( void )
+{ return onitama_;
+}
+
+bool
+MCTreeNode::nodeCycle ( void )
+{ uint childnr = 0;
+
+  Onitama onicopy = Onitama ( onitama_ );
+
+  /* selection */
+  selectChild ( childnr );
+
+  if ( children_[childnr] == NULL )
+  { onitama_.movePawn      ( options_[childnr] );
+    onitama_.exchangeCards ( options_[childnr].card_ );
+    onitama_.changeTurn    ( );
+
+    /* Expansion (+ Simulation) */
+    children_[childnr] = new MCTreeNode( onitama_ );
+
+    /* Reset board positions */
+    onitama_ = onicopy;
+
+    nrplayed_++;
+
+    if (children_[childnr]->nrwon_ > 0)
+    { nrwon_++;
+      return true;
+    }
+    return false;
+  }
+  else
+  { nrplayed_++;
+
+    if (children_[childnr]->nodeCycle())
+    { nrwon_++;
+      return true;
+    }
+    return false;
+  }
+}
+
+
+void
+MCTreeNode::printTree ( std::string pre /* = "" */) const
+{ uint i;
+
+  std::cout << pre << " (" << nrwon_ << "/" << nrplayed_ << ") " << std::endl;
+
+  for ( i = 0; i < size_; ++i )
+  { if ( children_[i] != NULL )
+    {
+      children_[i]->printTree ( "\t" + pre );
     }
   }
+}
 
+
+void
+MCTreeNode::selectChild ( uint & childnr )
+{ uint  i;
+  float currvalue = 0.f,
+        highvalue = 0.f;
+
+  MCTreeNode * child;
+
+  for ( i = 0; i < size_; ++i )
+  { child = children_[i];
+    if ( child == NULL )
+    { childnr = i;
+      return;
+    }
+
+    else
+      currvalue = ( (float) child->nrwon_ / (float) child->nrplayed_ )
+                  + sqrt( (float) EXPLORATION_PARAMETER / (float) child->nrplayed_ );
+
+    if ( currvalue >= highvalue )
+    { highvalue = currvalue;
+      childnr = i;
+    }
+  }
+}
+
+
+void
+MCTreeNode::randomPlayout ( void )
+{ uint turns = 0;
+
+  Onitama onicopy = Onitama ( onitama_ );
+
+  while( !onitama_.wayOfTheStone ( ) && !onitama_.wayOfTheStream ( ) && turns < gMaxTurns )
+  { onitama_.randomMove ( );
+    ++turns;
+  }
+
+  ++nrplayed_;
+
+  if ( turns >= gMaxTurns )
+    ++nrtied_;
+
+  else if ( turns % N_PLAYERS == 0 )
+    ++nrwon_;
+
+  onitama_ = onicopy;
 }
