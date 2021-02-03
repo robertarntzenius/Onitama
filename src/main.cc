@@ -84,10 +84,10 @@ int main ( int argc, char *argv[] )
   for ( int i = 0; i < gRepeats; ++i )
   { do
     { if (onicopy->getTurn ( ) == BLUE)
-        // onicopy->MCMove ( );
         onicopy->MCTSMove ( );
       else
-        onicopy->randomMove ( );
+        onicopy->MCMove ( );
+        // onicopy->randomMove ( );
 
       ++movecount;
     } while( !onicopy->wayOfTheStone ( ) && !onicopy->wayOfTheStream ( ) );

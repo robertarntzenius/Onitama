@@ -84,20 +84,13 @@ Onitama::randomMove ( void )
 
   getOptions ( options, n );
 
-  if ( n > 0 )
-  { n = rand() % n;
+  n = rand() % n;
 
+  if ( options[n].pawn_ != NULL )
     movePawn      ( options[n] );
-    exchangeCards ( options[n].card_ );
-    changeTurn    ( );
 
-  }
-  else
-  { n = rand() % CARDS_PLAYER;
-
-    exchangeCards ( &hands_[turn_][n] );
-    changeTurn    ( );
-  }
+  exchangeCards ( options[n].card_ );
+  changeTurn    ( );
 }
 
 
@@ -123,50 +116,31 @@ Onitama::MCMove ( void )
 
   getOptions ( options, n );
 
-  if ( n > 0 )
-  { for ( i = 0; i < n; ++i )
-    { wincount = 0;
-      tiecount = 0;
+  for ( i = 0; i < n; ++i )
+  { wincount = 0;
+    tiecount = 0;
 
+    if ( options[i].pawn_ != NULL )
       movePawn      ( options[i] );
-      exchangeCards ( options[i].card_ );
-      changeTurn    ( );
 
-      randomPlayouts ( onioption, wincount, tiecount );
+    exchangeCards ( options[i].card_ );
+    changeTurn    ( );
 
-      if ( wincount + ( tievalue * tiecount ) >= maxwincount )
-      { maxwincount = wincount + ( tievalue * tiecount );
-        bestmove = i;
-      }
+    randomPlayouts ( onioption, wincount, tiecount, n );
 
-      *this = onicopy;
+    if ( wincount + ( tievalue * tiecount ) >= maxwincount )
+    { maxwincount = wincount + ( tievalue * tiecount );
+      bestmove = i;
     }
 
+    *this = onicopy;
+  }
+
+  if ( options[bestmove].pawn_ != NULL )
     movePawn      ( options[bestmove] );
-    exchangeCards ( options[bestmove].card_ );
-    changeTurn    ( );
-  }
-  else
-  { for ( i = 0; i < CARDS_PLAYER; ++i )
-    { wincount = 0;
-      tiecount = 0;
 
-      exchangeCards ( &hands_[turn_][i] );
-      changeTurn    ( );
-
-      randomPlayouts ( onioption, wincount, tiecount );
-
-      if ( wincount + ( tievalue * tiecount ) >= maxwincount )
-      { maxwincount = wincount + ( tievalue * tiecount );
-        bestmove = i;
-      }
-
-      *this = onicopy;
-    }
-
-    exchangeCards ( &hands_[turn_][bestmove] );
-    changeTurn    ( );
-  }
+  exchangeCards ( options[bestmove].card_ );
+  changeTurn    ( );
 }
 
 
@@ -182,7 +156,7 @@ Onitama::MCTSMove ( void )
   for ( i = 0; i < gPlayouts; ++i )
     root->nodeCycle ( );
 
-  root->printTree ( );
+  // root->printTree ( );
 
   root = root->doBestMove ( );
   *this = root->getOnitama ( );
@@ -239,17 +213,14 @@ Onitama::wayOfTheStream ( void ) const
 
 void
 Onitama::initCards ( const char * filename )
-{ uint x,y,
-       n,m = 0,
+{ uint n = 0,
+       m = 0,
        r;
 
   std::ifstream ifs ( filename, std::ifstream::in );
-  std::string stamp,
-              line;
+  std::string line;
 
   std::size_t numberOfCards;
-
-  bool cardMap[MAX_RANGE][MAX_RANGE];
 
   if ( !ifs.good ( ) )
     return;
@@ -257,7 +228,6 @@ Onitama::initCards ( const char * filename )
   ifs >> numberOfCards;
 
   bool selection[numberOfCards] = {false};
-  n = 0;
 
   while ( n < N_CARDS )
   { r = rand() % numberOfCards;
@@ -272,15 +242,22 @@ Onitama::initCards ( const char * filename )
   for ( n = 0; n < numberOfCards; ++n )
   { ifs.ignore();
 
-    for ( x = 0; x < MAX_RANGE; ++x )
-    { getline ( ifs, line );
-      for ( y = 0; y < MAX_RANGE; ++y )
-        cardMap[x][y] = ( line[y] == '1' );
-    }
-
     if ( selection[n] == true )
-    { cards_[m] = Card ( cardMap, stamp.compare("BLUE") == 0 );
-      ++m;
+    { cards_[m].size_ = 0;
+      for ( uint y = 0; y < MAX_RANGE; ++y )
+      { getline ( ifs, line );
+        for ( uint x = 0; x < MAX_RANGE; ++x )
+          if ( line[x] == '1' )
+          { cards_[m].moves_[cards_[m].size_].x_ = x - ( MAX_RANGE / 2 );
+            cards_[m].moves_[cards_[m].size_].y_ = ( MAX_RANGE / 2 ) - y;
+            cards_[m].size_++;
+          }
+      }
+      m++;
+    }
+    else
+    { for ( uint y = 0; y < MAX_RANGE; ++y )
+        getline ( ifs, line );
     }
   }
 
@@ -314,11 +291,11 @@ Onitama::initPawns ( void )
 
 
 void
-Onitama::randomPlayouts (Onitama & onitama, uint & wincount, uint & tiecount )
+Onitama::randomPlayouts (Onitama & onitama, uint & wincount, uint & tiecount, uint & n )
 { uint i, turns;
   onitama = *this;
 
-  for ( i = 0; i < gPlayouts; ++i )
+  for ( i = 0; i < ( gPlayouts / n ); ++i )
   { turns = 0;
 
     while( !wayOfTheStone ( ) && !wayOfTheStream ( ) && turns < gMaxTurns )
@@ -375,6 +352,16 @@ Onitama::getOptions ( Option ( & options ) [MAX_OPTIONS], uint & size )
             return;
         }
       }
+
+  if ( size == 0 )
+  { for ( i = 0; i < CARDS_PLAYER; ++i )
+    { options[i].pawn_ = NULL;
+      options[i].move_ = NULL;
+      options[i].card_ = &hands_[turn_][i];
+    }
+
+    size = CARDS_PLAYER;
+  }
 }
 
 
@@ -587,8 +574,6 @@ MCTreeNode::MCTreeNode ( Onitama & onitama ) : children_(NULL),
   onitama_.getOptions ( options_, size_ );
   children_ = new MCTreeNode * [size_];
 
-  /* FIXME geen opties */
-
   for ( i = 0; i < size_; ++i )
     children_[i] = NULL;
 
@@ -660,7 +645,9 @@ MCTreeNode::nodeCycle ( void )
   selectChild ( childnr );
 
   if ( children_[childnr] == NULL )
-  { onitama_.movePawn      ( options_[childnr] );
+  { if ( options_[childnr].pawn_ != NULL )
+      onitama_.movePawn      ( options_[childnr] );
+
     onitama_.exchangeCards ( options_[childnr].card_ );
     onitama_.changeTurn    ( );
 
@@ -672,7 +659,7 @@ MCTreeNode::nodeCycle ( void )
 
     nrplayed_++;
 
-    if (children_[childnr]->nrwon_ > 0)
+    if (children_[childnr]->nrwon_ == 0)
     { nrwon_++;
       return true;
     }
@@ -682,9 +669,9 @@ MCTreeNode::nodeCycle ( void )
   { nrplayed_++;
 
     if (children_[childnr]->nodeCycle())
-    { nrwon_++;
       return true;
-    }
+
+    nrwon_++;
     return false;
   }
 }

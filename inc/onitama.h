@@ -58,7 +58,7 @@ struct Pawn
 { ePawnType type_;
   uint x_,
        y_;
-
+  /* FIXME remove */
   Pawn () : type_(ePawnType::Dead),
             x_(0),
             y_(0)
@@ -69,21 +69,6 @@ struct Pawn
 struct Card
 { Move moves_[MAX_MOVES];
   uint size_;
-
-  Card () : size_(0)
-  {}
-
-  Card ( const bool cardMap[MAX_RANGE][MAX_RANGE], const bool stamp ) : size_(0)
-  { uint i,j;
-
-    for ( i = 0; i < MAX_RANGE; ++i )
-      for ( j = 0; j < MAX_RANGE; ++j )
-        if ( cardMap[i][j] == true )
-        { this->moves_[size_].x_ = j - ( MAX_RANGE / 2 );
-          this->moves_[size_].y_ = ( MAX_RANGE / 2 ) - i;
-          ++size_;
-        }
-  }
 };
 
 
@@ -120,7 +105,7 @@ class Onitama
     void    initCards ( const char * );
     void    initPawns ( void );
 
-    void    randomPlayouts ( Onitama &, uint &, uint & );
+    void    randomPlayouts ( Onitama &, uint &, uint &, uint & );
 
     void    getOptions  ( Option (&)[MAX_OPTIONS], uint & );
 
