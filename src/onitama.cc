@@ -8,7 +8,6 @@
 
 uint gPlayouts  = 1000;
 uint gMaxTurns  = 100;
-bool gPrintFlag = false;
 
 
 /* CLASS ONITAMA */
@@ -79,9 +78,6 @@ Onitama::randomMove ( void )
 
   Option options [MAX_OPTIONS];
 
-  if ( gPrintFlag )
-    printBoard ( );
-
   getOptions ( options, n );
 
   n = rand() % n;
@@ -111,9 +107,6 @@ Onitama::MCMove ( void )
 
   Option options [MAX_OPTIONS];
 
-  if ( gPrintFlag )
-    printBoard ( );
-
   getOptions ( options, n );
 
   for ( i = 0; i < n; ++i )
@@ -126,7 +119,10 @@ Onitama::MCMove ( void )
     exchangeCards ( options[i].card_ );
     changeTurn    ( );
 
-    randomPlayouts ( onioption, wincount, tiecount, n );
+    if ( i < gPlayouts % n )
+      randomPlayouts ( onioption, wincount, tiecount, ( gPlayouts / n ) + 1 );
+    else
+      randomPlayouts ( onioption, wincount, tiecount, gPlayouts / n );
 
     if ( wincount + ( tievalue * tiecount ) >= maxwincount )
     { maxwincount = wincount + ( tievalue * tiecount );
@@ -149,9 +145,6 @@ Onitama::MCTSMove ( void )
 { uint i;
 
   MCTreeNode * root = new MCTreeNode ( *this );
-
-  if ( gPrintFlag )
-    printBoard ( );
 
   for ( i = 0; i < gPlayouts; ++i )
     root->nodeCycle ( );
@@ -183,12 +176,10 @@ Onitama::wayOfTheStone ( void ) const
 
 bool
 Onitama::wayOfTheStream ( void ) const
-{ uint i,j = (BOARDSIZE - N_MASTERS) / 2;
-
-  if ( turn_ == BLUE )
-  { for ( i = 0; i < N_MASTERS; ++i )
-    { if ( pawns_[RED][i].y_ == BOARDSIZE - 1 )
-      { for ( j = (BOARDSIZE - N_MASTERS) / 2; j < N_MASTERS; ++j )
+{ if ( turn_ == BLUE )
+  { for ( uint i = 0; i < N_MASTERS; ++i )
+    { if ( pawns_[RED][i].y_ == BOARDHEIGHT - 1 )
+      { for ( uint j = (BOARDWIDTH - N_MASTERS) / 2; j < N_MASTERS; ++j )
         { if ( pawns_[RED][i].x_ == j )
             return true;
         }
@@ -197,9 +188,9 @@ Onitama::wayOfTheStream ( void ) const
   }
 
   else
-  { for ( i = 0; i < N_MASTERS; ++i )
+  { for ( uint i = 0; i < N_MASTERS; ++i )
     { if ( pawns_[BLUE][i].y_ == 0 )
-      { for ( j = (BOARDSIZE - N_MASTERS) / 2; j < N_MASTERS; ++j )
+      { for ( uint j = (BOARDWIDTH - N_MASTERS) / 2; j < N_MASTERS; ++j )
         { if ( pawns_[BLUE][i].x_ == j )
             return true;
         }
@@ -268,7 +259,7 @@ Onitama::initCards ( const char * filename )
 void
 Onitama::initPawns ( void )
 { uint i,
-       j = (BOARDSIZE - N_MASTERS) / 2;
+       j = (BOARDWIDTH - N_MASTERS) / 2;
 
   for ( i = 0; i < N_MASTERS; ++i )
   { pawns_[BLUE][i].type_ = ePawnType::Master;
@@ -276,26 +267,26 @@ Onitama::initPawns ( void )
     pawns_[BLUE][i].x_ = j + i;
     pawns_[RED ][i].x_ = j + i;
     pawns_[BLUE][i].y_ = 0;
-    pawns_[RED ][i].y_ = BOARDSIZE - 1;
+    pawns_[RED ][i].y_ = BOARDHEIGHT - 1;
   }
 
-  for ( i = i; i < BOARDSIZE; ++i )
+  for ( i = i; i < BOARDWIDTH; ++i )
   { pawns_[BLUE][i].type_ = ePawnType::Student;
     pawns_[RED ][i].type_ = ePawnType::Student;
-    pawns_[BLUE][i].x_ = (j + i) % BOARDSIZE;
-    pawns_[RED ][i].x_ = (j + i) % BOARDSIZE;
+    pawns_[BLUE][i].x_ = (j + i) % BOARDWIDTH;
+    pawns_[RED ][i].x_ = (j + i) % BOARDWIDTH;
     pawns_[BLUE][i].y_ = 0;
-    pawns_[RED ][i].y_ = BOARDSIZE - 1;
+    pawns_[RED ][i].y_ = BOARDHEIGHT - 1;
   }
 }
 
 
 void
-Onitama::randomPlayouts (Onitama & onitama, uint & wincount, uint & tiecount, uint & n )
+Onitama::randomPlayouts (Onitama & onitama, uint & wincount, uint & tiecount, uint playouts )
 { uint i, turns;
   onitama = *this;
 
-  for ( i = 0; i < ( gPlayouts / n ); ++i )
+  for ( i = 0; i < playouts; ++i )
   { turns = 0;
 
     while( !wayOfTheStone ( ) && !wayOfTheStream ( ) && turns < gMaxTurns )
@@ -337,7 +328,7 @@ Onitama::getOptions ( Option ( & options ) [MAX_OPTIONS], uint & size )
             y = options[size].pawn_->y_ - options[size].move_->y_;
           }
 
-          if ( x >= BOARDSIZE || y >= BOARDSIZE )
+          if ( x >= BOARDWIDTH || y >= BOARDHEIGHT )
             break;
 
           ++size;
@@ -448,53 +439,53 @@ Onitama::divideCards ( void )
 
 
 void
-Onitama::refreshBoard ( void )
-{ uint i,j,
+Onitama::refreshBoard ( char board [BOARDHEIGHT][BOARDWIDTH] ) const
+{ uint half,
        x,y;
 
   ePawnType type;
 
-  for ( i = 0; i < BOARDSIZE; ++i )
-    for ( j = 0; j < BOARDSIZE; ++j )
-      board_[i][j] = '.';
+  for ( uint i = 0; i < BOARDHEIGHT; ++i )
+    for ( uint j = 0; j < BOARDWIDTH; ++j )
+      board[i][j] = '.';
 
-  j = (BOARDSIZE - N_MASTERS) / 2;
+  half = (BOARDWIDTH - N_MASTERS) / 2;
 
-  for ( i = 0; i < N_MASTERS; ++i )
-  { board_[i + j][0]             = '_';
-    board_[i + j][BOARDSIZE - 1] = '_';
+  for ( uint i = 0; i < N_MASTERS; ++i )
+  { board[0][i + half]               = '_';
+    board[BOARDHEIGHT - 1][i + half] = '_';
   }
 
-  for ( i = 0; i < N_PLAYERS; ++i )
-    for ( j = 0; j < BOARDSIZE; ++j )
+  for ( uint i = 0; i < N_PLAYERS; ++i )
+    for ( uint j = 0; j < BOARDWIDTH; ++j )
     { x = pawns_[i][j].x_;
       y = pawns_[i][j].y_;
       type = pawns_[i][j].type_;
 
       if ( type == ePawnType::Student )
-        board_[x][y] = ( i == BLUE )? 's' : 'S';
+        board[y][x] = ( i == BLUE )? 's' : 'S';
       else if ( type == ePawnType::Master )
-        board_[x][y] = ( i == BLUE )? 'm' : 'M';
+        board[y][x] = ( i == BLUE )? 'm' : 'M';
     }
 }
 
 
 void
-Onitama::printBoard ( void )
-{ uint x,y;
+Onitama::printBoard ( void ) const
+{ char board [BOARDHEIGHT][BOARDWIDTH];
 
-  refreshBoard ( );
+  refreshBoard ( board );
 
-  for ( x = 0; x < (MAX_RANGE + 5) * (CARDS_PLAYER + CARDS_EXTRA) - 1; ++x )
+  for ( uint x = 0; x < (MAX_RANGE + 5) * (CARDS_PLAYER + CARDS_EXTRA) - 1; ++x )
     std::cout << "=";
 
   printPlayerCards ( BLUE );
 
   std::cout << "BLUE" << std::endl;
 
-  for ( y = 0; y < BOARDSIZE; ++y )
-  { for ( x = 0; x < BOARDSIZE; ++x )
-      std::cout << board_[x][y];
+  for ( uint y = 0; y < BOARDHEIGHT; ++y )
+  { for ( uint x = 0; x < BOARDWIDTH; ++x )
+      std::cout << board[y][x];
 
     std::cout << std::endl;
   }

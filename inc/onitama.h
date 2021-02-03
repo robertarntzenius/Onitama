@@ -10,10 +10,11 @@
 #define CARDS_EXTRA 1  /* Number of neutral cards */
 
 /* Modular */
-#define BOARDSIZE 5       /* Board size */
+#define BOARDWIDTH  5       /* Board width */
+#define BOARDHEIGHT 5       /* Board height */
 
-#define N_PAWNS BOARDSIZE /* Number of pawns per player (equal to board size) */
-#define N_MASTERS 1       /* Number of masters per player */
+#define N_PAWNS BOARDWIDTH  /* Number of pawns per player (equal to board width) */
+#define N_MASTERS 1         /* Number of masters per player */
 
 
 #define CARDS_PLAYER  2  /* Number of cards per player */
@@ -33,9 +34,6 @@
 #define EXPLORATION_PARAMETER 2
 
 typedef unsigned int uint;
-
-/* Flag for printing boards */
-extern bool gPrintFlag;
 
 extern uint gPlayouts;
 extern uint gMaxTurns;
@@ -58,11 +56,6 @@ struct Pawn
 { ePawnType type_;
   uint x_,
        y_;
-  /* FIXME remove */
-  Pawn () : type_(ePawnType::Dead),
-            x_(0),
-            y_(0)
-  {}
 };
 
 
@@ -101,11 +94,13 @@ class Onitama
     bool    wayOfTheStone  ( void ) const;
     bool    wayOfTheStream ( void ) const;
 
+    void    printBoard ( void ) const;
+
   private:
     void    initCards ( const char * );
     void    initPawns ( void );
 
-    void    randomPlayouts ( Onitama &, uint &, uint &, uint & );
+    void    randomPlayouts ( Onitama &, uint &, uint &, uint );
 
     void    getOptions  ( Option (&)[MAX_OPTIONS], uint & );
 
@@ -114,14 +109,11 @@ class Onitama
     void    changeTurn    ( void );
 
     void    divideCards  ( void );
-    void    refreshBoard ( void );
+    void    refreshBoard ( char [BOARDHEIGHT][BOARDWIDTH] ) const;
 
-    void    printBoard ( void ); /* Not const, since it first updates the board */
     void    printPlayerCards ( uint ) const;
 
-    char board_ [BOARDSIZE][BOARDSIZE];
     Pawn pawns_ [N_PLAYERS][N_PAWNS];
-
     Card cards_ [N_CARDS];
 
     Card * hands_ [N_PLAYERS][CARDS_PLAYER];

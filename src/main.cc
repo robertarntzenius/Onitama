@@ -22,14 +22,16 @@
 #include "onitama.h"
 
 
+bool gPrintFlag = false;
 int  gRepeats   = 100;
 
 
 int main ( int argc, char *argv[] )
 { int opt;
 
-  int wincount  = 0,
-      movecount = 0;
+  uint wincount  = 0,
+       movecount = 0,
+       totalmovecount = 0;
 
   Onitama * onitama = NULL,
           * onicopy = NULL;
@@ -82,28 +84,45 @@ int main ( int argc, char *argv[] )
   onicopy = new Onitama ( *onitama );
 
   for ( int i = 0; i < gRepeats; ++i )
-  { do
-    { if (onicopy->getTurn ( ) == BLUE)
-        onicopy->MCTSMove ( );
-      else
-        onicopy->MCMove ( );
-        // onicopy->randomMove ( );
+  { movecount = 0;
+    do
+    { if ( gPrintFlag )
+        onicopy->printBoard ( );
 
-      ++movecount;
+      if (onicopy->getTurn ( ) == BLUE)
+        onicopy->MCTSMove ( );
+        // onicopy->MCMove ( );
+      else
+        onicopy->randomMove ( );
+
+      movecount++;
+
+      if ( movecount >= gMaxTurns )
+      {
+        // std::cout << "Turn limit reached!" << std::endl;
+
+        onicopy->printBoard ( );
+
+        if ( onicopy->getTurn ( ) == RED )
+          wincount--;
+        break;
+      }
+
     } while( !onicopy->wayOfTheStone ( ) && !onicopy->wayOfTheStream ( ) );
 
+    totalmovecount += movecount;
 
     /* Check winner */
     if ( onicopy->getTurn ( ) == RED )
-      ++wincount;
+      wincount++;
 
-    std::cout << "Blue won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
+    // std::cout << "Blue won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
 
     /* Reset positions */
     *onicopy = *onitama;
   }
 
-  std::cout << "Blue won " << wincount << "/" << gRepeats << " times with an average of " << movecount / gRepeats << " moves per game" << std::endl;
+  std::cout << "Blue won " << wincount << "/" << gRepeats << " times with an average of " << (float) totalmovecount / gRepeats << " moves per game" << std::endl;
 
   delete onicopy;
 
