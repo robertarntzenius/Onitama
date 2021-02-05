@@ -99,7 +99,7 @@ int main ( int argc, char *argv[] )
 
       if ( movecount >= gMaxTurns )
       {
-        // std::cout << "Turn limit reached!" << std::endl;
+        std::cout << "Turn limit reached!" << std::endl;
 
         onicopy->printBoard ( );
 
@@ -110,13 +110,16 @@ int main ( int argc, char *argv[] )
 
     } while( !onicopy->wayOfTheStone ( ) && !onicopy->wayOfTheStream ( ) );
 
+    if ( gPrintFlag )
+        onicopy->printBoard ( );
+        
     totalmovecount += movecount;
 
     /* Check winner */
     if ( onicopy->getTurn ( ) == RED )
       wincount++;
 
-    // std::cout << "Blue won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
+    std::cout << "Blue won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
 
     /* Reset positions */
     *onicopy = *onitama;
@@ -126,7 +129,6 @@ int main ( int argc, char *argv[] )
 
   delete onicopy;
 
-  // onitama->deleteMCTree ( );
   delete onitama;
 
   return 0;
