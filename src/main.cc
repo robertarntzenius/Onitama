@@ -91,8 +91,8 @@ int main ( int argc, char *argv[] )
 
       if (onicopy->getTurn ( ) == BLUE)
         onicopy->MCTSMove ( );
-        // onicopy->MCMove ( );
       else
+        // onicopy->MCMove ( );
         onicopy->randomMove ( );
 
       movecount++;
@@ -112,7 +112,7 @@ int main ( int argc, char *argv[] )
 
     if ( gPrintFlag )
         onicopy->printBoard ( );
-        
+
     totalmovecount += movecount;
 
     /* Check winner */

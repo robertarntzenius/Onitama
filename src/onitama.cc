@@ -14,7 +14,9 @@ uint gMaxTurns  = 100;
 
 Onitama::Onitama ( const char * filename) : extra_(NULL),
                                             turn_(BLUE)
-{ srand(time(NULL));
+{
+  // srand(123);
+  srand(time(NULL));
 
   /* initialize cards from file with card data */
   initCards ( filename );
@@ -109,6 +111,13 @@ Onitama::MCMove ( void )
 
   getOptions ( options, n );
 
+  if ( n == 1 )
+  { movePawn      ( options[0] );
+    exchangeCards ( options[0].card_ );
+    changeTurn    ( );
+  }
+
+
   for ( i = 0; i < n; ++i )
   { wincount = 0;
     tiecount = 0;
@@ -142,14 +151,30 @@ Onitama::MCMove ( void )
 
 void
 Onitama::MCTSMove ( void )
-{ uint i;
+{ MCTreeNode * root = new MCTreeNode ( *this );
 
-  MCTreeNode * root = new MCTreeNode ( *this );
+  Option options [MAX_OPTIONS];
+  uint n = 0;
 
-  for ( i = 0; i < gPlayouts; ++i )
+  getOptions ( options, n );
+
+  if ( n == 1 )
+  { movePawn      ( options[0] );
+    exchangeCards ( options[0].card_ );
+    changeTurn    ( );
+  }
+
+  /* force first nodecycle (otherwise gPlayouts = 0 would cause segfault) */
+
+  root->nodeCycle ( );
+  for ( uint i = 1; i < gPlayouts; ++i )
+  {
     root->nodeCycle ( );
 
-  // root->printTree ( );
+    // std::cout << std::endl;
+    //
+    // root->printTree ( );
+  }
 
   root = root->doBestMove ( );
   *this = root->getOnitama ( );
@@ -285,6 +310,9 @@ void
 Onitama::randomPlayouts (Onitama & onitama, uint & wincount, uint & tiecount, uint playouts )
 { uint i, turns;
   onitama = *this;
+
+  wincount = 0;
+  tiecount = 0;
 
   for ( i = 0; i < playouts; ++i )
   { turns = 0;
@@ -611,6 +639,8 @@ MCTreeNode::doBestMove ( void )
         bestmove = i;
       }
 
+  // std::cout << bestmove << std::endl;
+
   newroot = children_[bestmove];
 
   children_[bestmove] = NULL;
@@ -626,11 +656,22 @@ MCTreeNode::getOnitama ( void )
 { return onitama_;
 }
 
+
 bool
 MCTreeNode::nodeCycle ( void )
 { uint childnr = 0;
 
   Onitama onicopy = Onitama ( onitama_ );
+
+  if ( onitama_.wayOfTheStone ( ) || onitama_.wayOfTheStream ( ) )
+  { nrplayed_++;
+
+    if (nrwon_ == 0)
+      return false;
+
+    nrwon_++;
+    return true;
+  }
 
   /* selection */
   selectChild ( childnr );
@@ -660,10 +701,10 @@ MCTreeNode::nodeCycle ( void )
   { nrplayed_++;
 
     if (children_[childnr]->nodeCycle())
-      return true;
+      return false;
 
     nrwon_++;
-    return false;
+    return true;
   }
 }
 
@@ -727,7 +768,12 @@ MCTreeNode::randomPlayout ( void )
     ++nrtied_;
 
   else if ( turns % N_PLAYERS == 0 )
+  {
+    // std::cout << onicopy.getTurn ( ) << std::endl;
+    // onitama_.printBoard ( );
+    // std::cin >> turns;
     ++nrwon_;
+  }
 
   onitama_ = onicopy;
 }
