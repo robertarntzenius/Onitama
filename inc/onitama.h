@@ -31,10 +31,11 @@
 #define BLUE 0
 #define RED  1
 
-#define EXPLORATION_PARAMETER 2
+// #define EXPLORATION_PARAMETER 1.41421356237
 
 typedef unsigned int uint;
 
+extern float gExploration;
 extern uint gPlayouts;
 extern uint gMaxTurns;
 
@@ -66,10 +67,11 @@ struct Card
 
 
 struct Option
-{ Pawn *  pawn_;
-  Card ** card_;
-  Move *  move_;
+{ uint pawnnr_;
+  uint cardnr_;
+  uint movenr_;
 };
+
 
 class MCTreeNode;
 
@@ -105,7 +107,7 @@ class Onitama
     void    getOptions  ( Option (&)[MAX_OPTIONS], uint & );
 
     void    movePawn      ( const Option & );
-    void    exchangeCards ( Card ** );
+    void    exchangeCards ( uint );
     void    changeTurn    ( void );
 
     void    divideCards  ( void );
@@ -136,20 +138,17 @@ class MCTreeNode
 
     MCTreeNode & operator= ( const MCTreeNode & );
 
-    MCTreeNode * doBestMove    ( void );
-    Onitama      getOnitama    ( void );
+    uint   getBestMove   ( void );
+    bool   nodeCycle     ( Onitama & );
 
-    bool         nodeCycle     ( void );
-
-    void         printTree     ( std::string pre = "" ) const;
+    void   printTree     ( std::string pre = "" ) const;
 
   private:
-    void    deleteChildren     ( void );
-    void    selectChild        ( uint & );
-    void    randomPlayout      ( void );
+    void   deleteChildren     ( void );
+    void   selectChild        ( uint & );
+    void   randomPlayout      ( Onitama & );
 
     MCTreeNode ** children_;
-    Onitama       onitama_;
 
     Option options_[MAX_OPTIONS];
 

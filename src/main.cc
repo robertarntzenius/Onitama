@@ -25,6 +25,7 @@
 bool gPrintFlag = false;
 int  gRepeats   = 100;
 
+extern float gExploration;
 
 int main ( int argc, char *argv[] )
 { int opt;
@@ -33,15 +34,19 @@ int main ( int argc, char *argv[] )
        movecount = 0,
        totalmovecount = 0;
 
-  Onitama * onitama = NULL,
-          * onicopy = NULL;
+  char * filename = NULL;
+
+  Onitama * onitama = NULL;
+
+  srand(time(NULL));
+  // srand(1234);
 
   /* Look for optional operators */
   while ( ( opt = getopt ( argc, argv, "f:n:m:r:p" ) ) != -1 )
   { /* Handle single operator at a time */
     switch ( opt )
     { case 'f': /* Get filename for cards */
-                onitama = new Onitama ( optarg );
+                filename = optarg;
                 break;
       case 'n': /* Set number of games */
                 gRepeats = atoi ( optarg );
@@ -66,7 +71,7 @@ int main ( int argc, char *argv[] )
 
   out:
 
-  if ( onitama == NULL )
+  if ( filename == NULL )
   { std::cerr << "Please call program as follows:" << std::endl
               << argv[0] << " -f FILENAME [-p] [-n <int>] [-r <int>] [-m <int>]" << std::endl
               << "\t-f      : file with card data"                               << std::endl
@@ -78,58 +83,59 @@ int main ( int argc, char *argv[] )
     return -1;
   }
 
-  /* MCTS */
-  // onitama->createMCTree ( );
+  for ( gExploration = 1.00; gExploration <= 2.00; gExploration += 0.01 )
+  { wincount  = 0,
+    movecount = 0,
+    totalmovecount = 0;
 
-  onicopy = new Onitama ( *onitama );
+    for ( int i = 0; i < gRepeats; ++i )
+    { /* Create board */
+      onitama = new Onitama ( filename );
 
-  for ( int i = 0; i < gRepeats; ++i )
-  { movecount = 0;
-    do
-    { if ( gPrintFlag )
-        onicopy->printBoard ( );
+      movecount = 0;
 
-      if (onicopy->getTurn ( ) == BLUE)
-        onicopy->MCTSMove ( );
-      else
-        // onicopy->MCMove ( );
-        onicopy->randomMove ( );
+      do
+      { if ( gPrintFlag )
+          onitama->printBoard ( );
 
-      movecount++;
+        if (onitama->getTurn ( ) == BLUE)
+          onitama->MCTSMove ( );
+        else
+          onitama->MCMove ( );
+          // onitama->randomMove ( );
 
-      if ( movecount >= gMaxTurns )
-      {
-        std::cout << "Turn limit reached!" << std::endl;
+        movecount++;
 
-        onicopy->printBoard ( );
+        // if ( movecount >= gMaxTurns )
+        // {
+        //   std::cout << "Turn limit reached!" << std::endl;
+        //
+        //   onitama->printBoard ( );
+        //
+        //   if ( onitama->getTurn ( ) == RED )
+        //     wincount--;
+        //   break;
+        // }
 
-        if ( onicopy->getTurn ( ) == RED )
-          wincount--;
-        break;
-      }
+      } while( !onitama->wayOfTheStone ( ) && !onitama->wayOfTheStream ( ) );
 
-    } while( !onicopy->wayOfTheStone ( ) && !onicopy->wayOfTheStream ( ) );
+      if ( gPrintFlag )
+          onitama->printBoard ( );
 
-    if ( gPrintFlag )
-        onicopy->printBoard ( );
+      totalmovecount += movecount;
 
-    totalmovecount += movecount;
+      /* Check winner */
+      if ( onitama->getTurn ( ) == RED )
+        wincount++;
 
-    /* Check winner */
-    if ( onicopy->getTurn ( ) == RED )
-      wincount++;
+      // std::cout << "Blue won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
 
-    std::cout << "Blue won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
+      /* Delete board */
+      delete onitama;
+    }
 
-    /* Reset positions */
-    *onicopy = *onitama;
+    std::cout << "Exploration paramater: " << gExploration << "\t Blue won " << wincount << "/" << gRepeats << " times with an average of " << (float) totalmovecount / gRepeats << " moves per game" << std::endl;
   }
-
-  std::cout << "Blue won " << wincount << "/" << gRepeats << " times with an average of " << (float) totalmovecount / gRepeats << " moves per game" << std::endl;
-
-  delete onicopy;
-
-  delete onitama;
 
   return 0;
 }
