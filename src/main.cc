@@ -25,12 +25,21 @@
 bool gPrintFlag = false;
 int  gRepeats   = 100;
 
+extern uint gPlayouts;
 extern float gExploration;
+
+extern uint gCycleCount;
+
+extern uint studentHeatMaps[N_PLAYERS + 1][BOARDHEIGHT][BOARDWIDTH];
+extern uint masterHeatMaps[N_PLAYERS + 1][BOARDHEIGHT][BOARDWIDTH];
 
 int main ( int argc, char *argv[] )
 { int opt;
 
+  int winner;
+
   uint wincount  = 0,
+       tiecount = 0,
        movecount = 0,
        totalmovecount = 0;
 
@@ -83,10 +92,11 @@ int main ( int argc, char *argv[] )
     return -1;
   }
 
-  for ( gExploration = 1.00; gExploration <= 2.00; gExploration += 0.01 )
-  { wincount  = 0,
-    movecount = 0,
-    totalmovecount = 0;
+  // for ( gPlayouts = 1; gPlayouts <= 10000; gPlayouts *= 10 )
+  // for ( gExploration = 0.4; gExploration < 2.0; gExploration += 0.2 )
+  // { wincount  = 0,
+    // movecount = 0,
+    // totalmovecount = 0;
 
     for ( int i = 0; i < gRepeats; ++i )
     { /* Create board */
@@ -99,43 +109,94 @@ int main ( int argc, char *argv[] )
           onitama->printBoard ( );
 
         if (onitama->getTurn ( ) == BLUE)
-          onitama->MCTSMove ( );
-        else
-          onitama->MCMove ( );
+          onitama->MCTSMove ( true, 100 );
+          // onitama->MCMove ( );
           // onitama->randomMove ( );
+        else
+          onitama->MCTSMove ( true, 100 );
+          // onitama->MCMove ( );
+          // onitama->randomMove ( );
+
+        // onitama->updateStats ( );
 
         movecount++;
 
-        // if ( movecount >= gMaxTurns )
-        // {
-        //   std::cout << "Turn limit reached!" << std::endl;
-        //
-        //   onitama->printBoard ( );
-        //
-        //   if ( onitama->getTurn ( ) == RED )
-        //     wincount--;
-        //   break;
-        // }
+        if ( movecount >= gMaxTurns )
+        {
+          // std::cout << "Turn limit reached!" << std::endl;
+          //
+          // onitama->printBoard ( );
+
+          if ( onitama->getTurn ( ) == RED )
+            wincount--;
+
+          tiecount++;
+          break;
+        }
 
       } while( !onitama->wayOfTheStone ( ) && !onitama->wayOfTheStream ( ) );
 
       if ( gPrintFlag )
           onitama->printBoard ( );
 
+      winner = ( onitama->getTurn ( ) == RED )? BLUE : RED;
+
+      // if ( movecount < gMaxTurns )
+      //   for ( int j = 0; j < BOARDHEIGHT; ++j )
+      //     for ( int k = 0; k < BOARDWIDTH; ++k )
+      //     { studentHeatMaps[N_PLAYERS][j][k] += studentHeatMaps[winner][j][k];
+      //       studentHeatMaps[BLUE][j][k] = 0;
+      //       studentHeatMaps[RED][j][k] = 0;
+      //     }
+      //
+      // if ( movecount < gMaxTurns )
+      //   for ( int j = 0; j < BOARDHEIGHT; ++j )
+      //     for ( int k = 0; k < BOARDWIDTH; ++k )
+      //     { masterHeatMaps[N_PLAYERS][j][k] += masterHeatMaps[winner][j][k];
+      //       masterHeatMaps[BLUE][j][k] = 0;
+      //       masterHeatMaps[RED][j][k] = 0;
+      //     }
+
       totalmovecount += movecount;
 
       /* Check winner */
-      if ( onitama->getTurn ( ) == RED )
+      if ( winner == BLUE )
         wincount++;
 
-      // std::cout << "Blue won (" << wincount << "/" << i+1 << ") games already!" << std::endl;
+      std::cout << "MCTS won (" << wincount << "/" << i+1 << ") games with " << tiecount << " ties." << std::endl;
 
       /* Delete board */
       delete onitama;
     }
 
-    std::cout << "Exploration paramater: " << gExploration << "\t Blue won " << wincount << "/" << gRepeats << " times with an average of " << (float) totalmovecount / gRepeats << " moves per game" << std::endl;
-  }
+    std::cout << "MCTS won " << wincount << "/" << gRepeats << " times including " << tiecount << " ties with an average of " << (float) totalmovecount / gRepeats << " moves per game" << std::endl;
+    // std::cout << "Exploration parameter: " << gExploration << " - MCTS won " << wincount << "/" << gRepeats << " times including " << tiecount << " ties with an average of " << (float) totalmovecount / gRepeats << " moves per game" << std::endl;
+
+  //   std::cout << "Playouts: " << gPlayouts << "\tMCTS won " << wincount << "/" << gRepeats << " times with an average of " << (float) totalmovecount / gRepeats << " moves per game" << std::endl;
+  // }
+
+  // std::cout << "StudentHeatMap:" << std::endl;
+  //
+  // for ( int i = 0; i < BOARDWIDTH; ++i )
+  // { std::cout << "|";
+  //   for ( int j = 0; j < BOARDHEIGHT; ++j )
+  //     std::cout << studentHeatMaps[N_PLAYERS][i][j] << "
+  // |";
+  //
+  //   std::cout << std::endl;
+  // }
+  //
+  // std::cout << std::endl << "MasterHeatMap:" << std::endl;
+  //
+  // for ( int i = 0; i < BOARDWIDTH; ++i )
+  // { std::cout << "|";
+  //   for ( int j = 0; j < BOARDHEIGHT; ++j )
+  //     std::cout << masterHeatMaps[N_PLAYERS][i][j] << "|";
+  //
+  //   std::cout << std::endl;
+  // }
+
+  std::cout << "Cyclecount: " << gCycleCount << ", so an average of " << (float) gCycleCount / totalmovecount << " cycles per move" << std::endl;
 
   return 0;
 }

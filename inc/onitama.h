@@ -25,7 +25,7 @@
 #define MAX_MOVES 4     /* Maximum number of moves on a single card */
 #define MAX_RANGE 5     /* Maximum range of a single move */
 
-#define MAX_OPTIONS 40  /* Maximum number of movement options per turn */ /* TODO find the actual maximum */
+#define MAX_OPTIONS 40  /* Maximum number of movement options per turn */
 
 /* Makes code more readable */
 #define BLUE 0
@@ -39,6 +39,10 @@ extern float gExploration;
 extern uint gPlayouts;
 extern uint gMaxTurns;
 
+extern uint gCycleCount;
+
+extern uint studentHeatMaps[N_PLAYERS + 1][BOARDHEIGHT][BOARDWIDTH];
+extern uint masterHeatMaps[N_PLAYERS + 1][BOARDHEIGHT][BOARDWIDTH];
 
 enum ePawnType
 { Dead = 0,
@@ -89,7 +93,7 @@ class Onitama
 
     void    randomMove ( void );
     void    MCMove     ( void );
-    void    MCTSMove   ( void );
+    void    MCTSMove   ( bool, uint );
 
     uint    getTurn    ( void ) const;
 
@@ -97,6 +101,8 @@ class Onitama
     bool    wayOfTheStream ( void ) const;
 
     void    printBoard ( void ) const;
+
+    void    updateStats   ( void );
 
   private:
     void    initCards ( const char * );
@@ -110,8 +116,8 @@ class Onitama
     void    exchangeCards ( uint );
     void    changeTurn    ( void );
 
-    void    divideCards  ( void );
-    void    refreshBoard ( char [BOARDHEIGHT][BOARDWIDTH] ) const;
+    void    divideCards   ( void );
+    void    refreshBoard  ( char [BOARDHEIGHT][BOARDWIDTH] ) const;
 
     void    printPlayerCards ( uint ) const;
 
@@ -130,7 +136,7 @@ class Onitama
 class MCTreeNode
 { public:
     MCTreeNode ( Onitama & );
-    MCTreeNode ( const MCTreeNode & );
+    MCTreeNode ( const MCTreeNode & ) = delete;
 
     /* remove default constructor */
     MCTreeNode ( void ) = delete;
@@ -138,8 +144,9 @@ class MCTreeNode
 
     MCTreeNode & operator= ( const MCTreeNode & );
 
-    uint   getBestMove   ( void );
-    bool   nodeCycle     ( Onitama & );
+    Option getBestMove   ( void );
+    uint   nodeCycle     ( Onitama & );
+    bool   pruneNodes    ( uint );
 
     void   printTree     ( std::string pre = "" ) const;
 

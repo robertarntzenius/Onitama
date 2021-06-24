@@ -5,9 +5,16 @@
 #include <iostream>
 #include <fstream>
 
-float gExploration = 1.41421356237f;
-uint gPlayouts  = 1000;
-uint gMaxTurns  = 100;
+// float gExploration  = 1.41421356237f;
+float gExploration  = 0.4f;
+uint gPlayouts      = 1000;
+uint gMaxTurns      = 100;
+uint gPlayoutsPerExpansion = 1;
+
+uint gCycleCount = 0;
+
+uint studentHeatMaps[N_PLAYERS + 1][BOARDHEIGHT][BOARDWIDTH] = {0};
+uint masterHeatMaps[N_PLAYERS + 1][BOARDHEIGHT][BOARDWIDTH] = {0};
 
 // uint gMaxOptions = 0;
 // uint gTotOptions = 0;
@@ -26,6 +33,7 @@ Onitama::Onitama ( const char * filename ) : extra_(NULL),
   divideCards ( );
 
   turn_ = rand() % N_PLAYERS;
+  // turn_ = BLUE;
 }
 
 
@@ -149,43 +157,50 @@ Onitama::MCMove ( void )
 
 
 void
-Onitama::MCTSMove ( void )
+Onitama::MCTSMove ( bool pruning, uint interval )
 { MCTreeNode * root = new MCTreeNode ( *this );
 
   Onitama onicopy = *this;
 
-  Option options [MAX_OPTIONS];
-  uint   bestmove,
-         n = 0;
+  Option bestmove;
 
-  getOptions ( options, n );
-
-  if ( n == 1 )
-  { movePawn      ( options[0] );
-    exchangeCards ( options[0].cardnr_ );
-    changeTurn    ( );
-  }
+  uint i;
 
   /* force first nodecycle (otherwise gPlayouts = 0 would cause segfault) */
-
   root->nodeCycle ( *this );
-  for ( uint i = 1; i < gPlayouts; ++i )
+  gCycleCount++;
+
+  for ( i = gPlayoutsPerExpansion; i < ( gPlayouts / 2 ) ; i += gPlayoutsPerExpansion )
   { *this = onicopy;
 
-    root->nodeCycle ( *this );
+    gCycleCount++;
 
-    // std::cout << std::endl;
-    // root->printTree ( );
+    root->nodeCycle ( *this );
   }
+
+  for ( i = i; i < gPlayouts; i += gPlayoutsPerExpansion )
+  { *this = onicopy;
+
+    if ( pruning && i % interval == 0 )
+      if ( root->pruneNodes ( gPlayouts - i ) )
+        break;
+
+    gCycleCount++;
+
+    root->nodeCycle ( *this );
+  }
+
+  //root->printTree ( );
+  //std::cout << std::endl;
 
   *this = onicopy;
 
   bestmove = root->getBestMove ( );
 
-  if ( options[bestmove].pawnnr_ != N_PAWNS )
-    movePawn      ( options[bestmove] );
+  if ( bestmove.pawnnr_ != N_PAWNS )
+    movePawn      ( bestmove );
 
-  exchangeCards ( options[bestmove].cardnr_ );
+  exchangeCards ( bestmove.cardnr_ );
   changeTurn    ( );
 
   delete root;
@@ -214,11 +229,13 @@ Onitama::wayOfTheStone ( void ) const
 
 bool
 Onitama::wayOfTheStream ( void ) const
-{ if ( turn_ == BLUE )
-  { for ( uint i = 0; i < N_MASTERS; ++i )
-    { if ( pawns_[RED][i].y_ == BOARDHEIGHT - 1 )
-      { for ( uint j = (BOARDWIDTH - N_MASTERS) / 2; j < N_MASTERS; ++j )
-        { if ( pawns_[RED][i].x_ == j )
+{ uint i,j;
+
+  if ( turn_ == BLUE )
+  { for ( i = 0; i < N_MASTERS; ++i )
+    { if ( pawns_[RED][i].y_ == 0 )
+      { for ( j = 0; j < N_MASTERS; ++j )
+        { if ( pawns_[RED][i].x_ == ( ( BOARDWIDTH - N_MASTERS ) / 2 ) + j )
             return true;
         }
       }
@@ -226,10 +243,10 @@ Onitama::wayOfTheStream ( void ) const
   }
 
   else
-  { for ( uint i = 0; i < N_MASTERS; ++i )
-    { if ( pawns_[BLUE][i].y_ == 0 )
-      { for ( uint j = (BOARDWIDTH - N_MASTERS) / 2; j < N_MASTERS; ++j )
-        { if ( pawns_[BLUE][i].x_ == j )
+  { for ( i = 0; i < N_MASTERS; ++i )
+    { if ( pawns_[BLUE][i].y_ == BOARDHEIGHT - 1 )
+      { for ( j = 0; j < N_MASTERS; ++j )
+        { if ( pawns_[BLUE][i].x_ == ( ( BOARDWIDTH - N_MASTERS ) / 2 ) + j )
             return true;
         }
       }
@@ -388,7 +405,7 @@ Onitama::getOptions ( Option ( & options ) [MAX_OPTIONS], uint & size )
   { for ( i = 0; i < CARDS_PLAYER; ++i )
     { options[i].pawnnr_ = N_PAWNS;
       options[i].movenr_ = 0;
-      options[i].cardnr_ = 0;
+      options[i].cardnr_ = i;
     }
 
     size = CARDS_PLAYER;
@@ -401,7 +418,9 @@ Onitama::getOptions ( Option ( & options ) [MAX_OPTIONS], uint & size )
 
 void
 Onitama::movePawn ( const Option & option )
-{ uint i,j;
+{ uint i,
+       otherplayer = (turn_ + 1) % N_PLAYERS;
+
 
   Pawn * pawn = &pawns_[turn_][option.pawnnr_];
   Card * card = hands_[turn_][option.cardnr_];
@@ -417,19 +436,10 @@ Onitama::movePawn ( const Option & option )
   }
 
   for ( i = 0; i < N_PAWNS; ++i )
-  { if ( pawns_[BLUE][i].type_ != ePawnType::Dead )
-    { for ( j = 0; j < N_PAWNS; ++j )
-      { if ( pawns_[RED][j].type_ != ePawnType::Dead )
-        { if ( pawns_[BLUE][i].x_ == pawns_[RED][j].x_ && pawns_[BLUE][i].y_ == pawns_[RED][j].y_)
-          { if (turn_ == BLUE)
-              pawns_[RED ][j].type_ = ePawnType::Dead;
-            else
-              pawns_[BLUE][i].type_ = ePawnType::Dead;
-          }
-        }
-      }
-    }
-  }
+    if ( pawns_[otherplayer][i].type_ != ePawnType::Dead )
+      if ( pawn->x_ == pawns_[otherplayer][i].x_ && pawn->y_ == pawns_[otherplayer][i].y_ )
+        pawns_[otherplayer][i].type_ = ePawnType::Dead;
+
 }
 
 
@@ -447,6 +457,26 @@ Onitama::exchangeCards ( uint cardnr )
 void
 Onitama::changeTurn ( void )
 { turn_ = (turn_ == BLUE)? RED : BLUE;
+}
+
+
+void
+Onitama::updateStats ( void )
+{ uint i;
+
+  for ( i = 0; i < N_MASTERS; ++i )
+  { if ( pawns_[BLUE][i].type_ != ePawnType::Dead )
+      masterHeatMaps[BLUE][BOARDHEIGHT - pawns_[BLUE][i].y_ - 1][pawns_[BLUE][i].x_]++;
+    if ( pawns_[RED][i].type_ != ePawnType::Dead )
+      masterHeatMaps[RED][pawns_[RED][i].y_][pawns_[RED][i].x_]++;
+  }
+
+  for ( i = i; i < N_PAWNS; ++i )
+  { if ( pawns_[BLUE][i].type_ != ePawnType::Dead )
+      studentHeatMaps[BLUE][BOARDHEIGHT - pawns_[BLUE][i].y_ - 1][pawns_[BLUE][i].x_]++;
+    if ( pawns_[RED][i].type_ != ePawnType::Dead )
+      studentHeatMaps[RED][pawns_[RED][i].y_][pawns_[RED][i].x_]++;
+  }
 }
 
 
@@ -615,8 +645,9 @@ MCTreeNode::MCTreeNode ( Onitama & onitama ) : children_(NULL),
   for ( i = 0; i < size_; ++i )
     children_[i] = NULL;
 
-  /* when created do a single random playout */
-  randomPlayout ( onitama );
+  /* when created do a number of random playouts */
+  for ( i = 0; i < gPlayoutsPerExpansion; ++i)
+    randomPlayout ( onitama );
 }
 
 
@@ -643,43 +674,44 @@ MCTreeNode::~MCTreeNode ( void )
 // }
 
 
-uint
+Option
 MCTreeNode::getBestMove ( void )
 { uint i;
 
-  uint bestmove = 0,
-       mostvisits = 0;
+  uint bestmove = rand ( ) % size_,
+       mostwins = 0;
 
   for ( i = 0; i < size_; ++i )
     if ( children_[i] != NULL )
-      if ( children_[i]->nrplayed_ >= mostvisits )
-      { mostvisits = children_[i]->nrplayed_;
+      if ( children_[i]->nrwon_ >= mostwins )
+      { mostwins = children_[i]->nrwon_;
         bestmove = i;
       }
 
-  return bestmove;
+  return options_[bestmove];
 }
 
 
-bool
+uint
 MCTreeNode::nodeCycle ( Onitama & onitama )
-{ uint childnr = 0;
+{ uint childnr = 0,
+       parentwins = 0;
 
   if ( onitama.wayOfTheStone ( ) || onitama.wayOfTheStream ( ) )
-  { nrplayed_++;
+  { nrplayed_ += gPlayoutsPerExpansion;
 
     if (nrwon_ == 0)
-      return false;
+      return 0;
 
-    nrwon_++;
-    return true;
+    nrwon_ += gPlayoutsPerExpansion;
+    return gPlayoutsPerExpansion;
   }
 
   /* selection */
   selectChild ( childnr );
 
   if ( options_[childnr].pawnnr_ != N_PAWNS )
-    onitama.movePawn      ( options_[childnr] );
+    onitama.movePawn    ( options_[childnr] );
 
   onitama.exchangeCards ( options_[childnr].cardnr_ );
   onitama.changeTurn    ( );
@@ -688,29 +720,65 @@ MCTreeNode::nodeCycle ( Onitama & onitama )
   { /* Expansion (+ Simulation) */
     children_[childnr] = new MCTreeNode( onitama );
 
-    nrplayed_++;
+    nrplayed_+= gPlayoutsPerExpansion;
 
-    if (children_[childnr]->nrwon_ == 0)
-    { nrwon_++;
-      return true;
-    }
-    return false;
+    parentwins = children_[childnr]->nrwon_;
   }
   else
-  { nrplayed_++;
+  { nrplayed_ += gPlayoutsPerExpansion;
 
-    if (children_[childnr]->nodeCycle( onitama ))
-      return false;
-
-    nrwon_++;
-    return true;
+    parentwins = children_[childnr]->nodeCycle ( onitama );
   }
+
+  nrwon_ += gPlayoutsPerExpansion - parentwins;
+  return gPlayoutsPerExpansion - parentwins;
+}
+
+
+bool
+MCTreeNode::pruneNodes ( uint nrplayouts )
+{ uint i,
+       mostvisits = 0;
+
+  for ( i = 0; i < size_; ++i )
+    if ( children_[i] != NULL )
+    {
+      // std::cout << "Child " << i << ": ( " << children_[i]->nrwon_ << " / " << children_[i]->nrplayed_ << " )" << std::endl;
+
+      if ( children_[i]->nrplayed_ >= mostvisits )
+        mostvisits = children_[i]->nrplayed_;
+    }
+
+  for ( i = 0; i < size_; ++i )
+  { if ( children_[i] != NULL )
+    { if ( children_[i]->nrplayed_ + nrplayouts < mostvisits )
+      {
+        // std::cout << "Deleting child " << i << " from options ( " << children_[i]->nrplayed_ << " + " << nrplayouts  << " < " << mostvisits << " )"  << std::endl;
+        // std::cout << nrplayouts << std::endl;
+
+        delete children_[i];
+
+        children_[i] = children_[size_ - 1];
+        options_[i] = options_[size_ - 1];
+
+        children_[size_ - 1] = NULL;
+
+        i--;
+        size_--;
+      }
+    }
+  }
+
+  // return ( size_ == 1 );
+  return false;
 }
 
 
 void
 MCTreeNode::printTree ( std::string pre /* = "" */) const
 { uint i;
+
+  /* Full tree */
 
   std::cout << pre << " (" << nrwon_ << "/" << nrplayed_ << ") " << std::endl;
 
@@ -720,6 +788,17 @@ MCTreeNode::printTree ( std::string pre /* = "" */) const
       children_[i]->printTree ( "\t" + pre );
     }
   }
+
+  /* Only children */
+
+  // for ( i = 0; i < size_; ++i )
+  // { if ( children_[i] != NULL )
+  //   {
+  //     std::cout << children_[i]->nrplayed_ << " ";
+  //   }
+  // }
+  // std::cout << std::endl;
+
 }
 
 
@@ -756,7 +835,7 @@ MCTreeNode::randomPlayout ( Onitama & onitama )
 
   Onitama onicopy = Onitama ( onitama );
 
-  while( !onitama.wayOfTheStone ( ) && !onitama.wayOfTheStream ( ) && turns < (gMaxTurns / 10) )
+  while( !onitama.wayOfTheStone ( ) && !onitama.wayOfTheStream ( ) && turns < gMaxTurns )
   { onitama.randomMove ( );
     ++turns;
   }
